@@ -47,7 +47,7 @@ export function createSeatMap({ onPick = null, selectable = true } = {}) {
         b.classList.remove('sel');
         if (wasId !== m.id || b.dataset.color !== m.color || b.dataset.name !== m.name) {
           const bubble = b.querySelector('.bubble');
-          b.innerHTML = `<span class="av" style="--c:${esc(m.color)}">${esc((m.name || '?').trim().charAt(0).toUpperCase())}</span><span class="nm">${esc(m.name)}</span>`;
+          b.innerHTML = `${m.avatarUrl ? `<img class="avatar" src="${esc(m.avatarUrl)}" alt="${esc(m.name)}'s avatar"/>` : `<span class="av" style="--c:${esc(m.color)}">${esc((m.name || '?').trim().charAt(0).toUpperCase())}</span>`}<span class="nm">${esc(m.name)}</span>`;
           if (bubble && wasId === m.id) b.appendChild(bubble);
           b.dataset.who = m.id; b.dataset.color = m.color; b.dataset.name = m.name;
         }

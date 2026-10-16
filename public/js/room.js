@@ -4,7 +4,7 @@ import { createSeatMap } from './seatmap.js';
 import { createVoiceChat } from './voice.js';
 import { expectedPos, plan, IN_SYNC } from './sync.js';
 import * as net from './net.js';
-import { poster } from './art.js';
+import { poster, backdrop } from './art.js';
 import { getProfile, saveProfile, esc, getMovies, modal, toast, fmtTime, COLORS, whenLabel } from './util.js';
 
 const EMOJI = ['👏', '😂', '😮', '❤️', '🔥', '😢'];
@@ -39,7 +39,9 @@ export async function renderRoom(root, code, hooks = {}) {
             <button class="chipb voice-btn" id="voicebtn" title="Join voice chat">🎙️ <span>Voice Chat</span></button>
           </div>
           <button class="chipb danger" id="leavebtn" title="Leave room">🚪 <span>Leave</span></button>
-          <button class="chipb danger" id="dismissbtn" title="Dismiss room for everyone" style="display:none">🛑 <span>Dismiss</span></button>
+                     <button class="chipb danger" id="dismissbtn" title="Dismiss room for everyone" style="display:none">🛑 <span>Dismiss</span></button>
+            <button class="chipb" id="decorateBtn" title="Decorate Attic">🛋️ <span>Decorate</span></button>
+            <button class="chipb" id="audioBtn" title="Toggle ambient audio">🔊 <span>Audio</span></button>
         </div>
       </div>
       <div class="stage-wrap">
@@ -79,7 +81,7 @@ export async function renderRoom(root, code, hooks = {}) {
           <div class="two"><input id="qtitle" placeholder="Title (optional)" maxlength="80"><button class="btn-y sm">Add</button></div>
         </form>
         <div class="sub">Or pick from the catalogue</div>
-        <div class="qcat" id="qcat">${movies.map((m) => `<button data-id="${m.id}" title="${esc(m.title)}" style="background-image:${poster(m)}"></button>`).join('')}</div>
+        <div class="qcat" id="qcat">${movies.map((m) => `<button data-id="${m.id}" title="${esc(m.title)}" style="background-image:${backdrop(m)}"></button>`).join('')}</div>
         <div class="sub">Up next <small>(most votes plays first)</small></div>
         <ul class="qlist" id="qlist"></ul>
       </section>
@@ -227,7 +229,7 @@ export async function renderRoom(root, code, hooks = {}) {
     else if (!pb.playing && pb.pos < 0.5) {
       const sched = S.meta && S.meta.scheduledFor;
       const when = sched && sched > Date.now() ? `<small>Scheduled for ${esc(whenLabel(sched))} · <span id="countdown"></span></small>` : '<small>Waiting for everyone to settle in.</small>';
-      html = `<div class="ovc ready"><span class="mini-poster" style="background-image:${poster(movies.find((m) => m.id === pb.source.movieId) || { id: pb.source.title, title: pb.source.title, year: '', genres: ['Video'], theme: { h1: 220, h2: 40, motif: 'signal' } })}"></span><b>${esc(pb.source.title)}</b>${when}${canControl() ? '<button class="btn-y" data-act="start">▶ Start the party</button>' : '<small>The host will press play.</small>'}</div>`;
+      html = `<div class="ovc ready"><span class="mini-poster" style="background-image:${backdrop(movies.find((m) => m.id === pb.source.movieId) || { id: pb.source.title, title: pb.source.title, year: '', genres: ['Video'], theme: { h1: 220, h2: 40, motif: 'signal' } })}"></span><b>${esc(pb.source.title)}</b>${when}${canControl() ? '<button class="btn-y" data-act="start">▶ Start the party</button>' : '<small>The host will press play.</small>'}</div>`;
     }
     ov.innerHTML = html;
     ov.classList.toggle('show', !!html);
@@ -259,6 +261,103 @@ export async function renderRoom(root, code, hooks = {}) {
   document.addEventListener('keydown', onKey);
 
   /* ------------------------------------------------------------ top bar */
+// Added ambience and audio controls
+
+// Helper to apply ambience class and audio
+function applyAmbience() {
+  const roomEl = root.querySelector('.room');
+  if (!roomEl) return;
+  // Remove any existing ambience classes
+  roomEl.className = roomEl.className.replace(/\bambience-\w+\b/g, '').trim();
+  const amb = S.meta && S.meta.settings && S.meta.settings.ambience ? S.meta.settings.ambience : 'clear';
+  roomEl.classList.add(`ambience-${amb}`);
+  // Handle ambient audio
+  const audioEnabled = S.meta && S.meta.settings && typeof S.meta.settings.audioEnabled === 'boolean' ? S.meta.settings.audioEnabled : false;
+  let audioEl = document.getElementById('ambienceAudio');
+  if (!audioEl) {
+    audioEl = document.createElement('audio');
+    audioEl.id = 'ambienceAudio';
+    audioEl.src = '/audio/ambient.mp3'; // placeholder audio file
+    audioEl.loop = true;
+    audioEl.volume = 0.5;
+    document.body.appendChild(audioEl);
+  }
+  if (audioEnabled) {
+    audioEl.play().catch(() => {}); // avoid autoplay errors
+  } else {
+    audioEl.pause();
+    audioEl.currentTime = 0;
+  }
+}
+
+// Open decor modal
+function openDecorateModal() {
+  const themes = [
+    { id: 'clear', name: 'Clear Skies', desc: 'deep‑blue night sky, bright stars, a glowing moon, and warm fairy lights.' },
+    { id: 'rain', name: 'Rainy Window', desc: 'raindrops on the window, soft reflections, and gentle rain ambience.' },
+    { id: 'meteor', name: 'Meteor Shower', desc: 'shooting stars, subtle celestial particles, and a brighter night sky.' },
+    { id: 'golden', name: 'Golden Hour', desc: 'amber lighting, warm sunset tones, and a cozy late‑evening atmosphere.' },
+    { id: 'winter', name: 'Winter Night', desc: 'gentle snowfall outside, cool blue lighting, and warm indoor lamps.' },
+    { id: 'dream', name: 'Dreamscape', desc: 'drifting particles, soft purple‑blue gradients, and a magical atmosphere.' },
+  ];
+  const m = modal(`
+    <h2 class="mh">Decorate Your Attic</h2>
+    <div class="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">
+      ${themes.map(t => `
+        <div class="theme-card" data-id="${t.id}" style="border:1px solid var(--line);border-radius:8px;padding:8px;cursor:pointer;">
+          <strong>${t.name}</strong>
+          <p style="font-size:11px;color:var(--mut);margin:4px 0;">${t.desc}</p>
+        </div>`).join('')}
+    </div>
+    <div class="two" style="margin-top:12px;">
+      <button class="btn-y" id="randomBtn">Randomize</button>
+      <button class="btn-y" id="saveBtn">Save</button>
+    </div>
+  `, { wide: true });
+
+  // Highlight current selection
+  const current = S.meta && S.meta.settings && S.meta.settings.ambience ? S.meta.settings.ambience : 'clear';
+  const cards = m.el.querySelectorAll('.theme-card');
+  cards.forEach(c => { if (c.dataset.id === current) c.style.borderColor = 'var(--y)'; });
+
+  let selected = current;
+  m.el.querySelector('.theme-grid').onclick = (e) => {
+    const card = e.target.closest('.theme-card');
+    if (!card) return;
+    selected = card.dataset.id;
+    cards.forEach(c => c.style.borderColor = (c === card ? 'var(--y)' : 'var(--line)'));
+  };
+  m.el.querySelector('#randomBtn').onclick = () => {
+    const rand = themes[Math.floor(Math.random()*themes.length)].id;
+    selected = rand;
+    cards.forEach(c => c.style.borderColor = (c.dataset.id===rand? 'var(--y)' : 'var(--line)'));
+  };
+  m.el.querySelector('#saveBtn').onclick = () => {
+    net.send('settings', { ambience: selected });
+    m.close();
+  };
+}
+
+// Audio toggle handler
+function toggleAudio() {
+  const cur = S.meta && S.meta.settings && typeof S.meta.settings.audioEnabled === 'boolean' ? S.meta.settings.audioEnabled : false;
+  net.send('settings', { audioEnabled: !cur });
+}
+
+// Attach button listeners
+root.addEventListener('click', (e) => {
+  const dBtn = e.target.closest('#decorateBtn');
+  if (dBtn) { openDecorateModal(); return; }
+  const aBtn = e.target.closest('#audioBtn');
+  if (aBtn) { toggleAudio(); return; }
+});
+
+// Extend renderMeta to apply ambience after updating UI
+const _origRenderMeta = renderMeta;
+renderMeta = function() {
+  _origRenderMeta.apply(this, arguments);
+  applyAmbience();
+};
   $('#copy').onclick = async () => {
     const link = `${location.origin}/#/room/${code}`;
     try { await navigator.clipboard.writeText(link); toast('Invite link copied'); } catch { prompt('Copy this invite link:', link); }
@@ -267,7 +366,7 @@ export async function renderRoom(root, code, hooks = {}) {
 
   function openPicker() {
     const m = modal(`<h2 class="mh">Choose what to watch</h2>
-      <div class="pgrid">${movies.map((x) => `<button data-id="${x.id}" class="pk"><span style="background-image:${poster(x)}"></span><b>${esc(x.title)}</b></button>`).join('')}</div>
+      <div class="pgrid">${movies.map((x) => `<button data-id="${x.id}" class="pk"><span style="background-image:${backdrop(x)}"></span><b>${esc(x.title)}</b></button>`).join('')}</div>
       <form class="stack" id="pickform"><div class="sub">…or paste any YouTube / direct video link</div><div class="two"><input id="pkurl" placeholder="https://…"><button class="btn-y sm">Play</button></div></form>`, { wide: true });
     m.el.querySelector('.pgrid').onclick = async (e) => {
       const b = e.target.closest('.pk'); if (!b) return;
@@ -386,7 +485,7 @@ export async function renderRoom(root, code, hooks = {}) {
       const mv = q.source.movieId ? movies.find((m) => m.id === q.source.movieId) : null;
       const voted = q.voters.includes(myId);
       return `<li data-id="${q.id}">
-        <span class="qt" style="${mv ? `background-image:${poster(mv)}` : ''}">${mv ? '' : q.source.kind === 'youtube' ? '▶' : '🎞'}</span>
+        <span class="qt" style="${mv ? `background-image:${backdrop(mv)}` : ''}">${mv ? '' : q.source.kind === 'youtube' ? '▶' : '🎞'}</span>
         <div><b>${esc(q.title)}</b><small>${i === 0 ? '<em>Up next</em> · ' : ''}added by ${esc(q.addedBy)}</small></div>
         <button class="vote ${voted ? 'on' : ''}" data-a="vote" aria-label="Vote">▲ ${q.votes}</button>
         ${canControl() ? '<button class="ib" data-a="play" title="Play now">▶</button>' : ''}

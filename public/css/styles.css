@@ -325,3 +325,17 @@ select { border-radius: 999px; padding: 10px 16px; }
   .tm { min-width: 30px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+/* ---------- ambience themes ---------- */
+.room.ambience-clear { background: url('/images/ambience/clear.jpg') center/cover no-repeat; }
+.room.ambience-rain { background: url('/images/ambience/rain.jpg') center/cover no-repeat; }
+.room.ambience-meteor { background: url('/images/ambience/meteor.jpg') center/cover no-repeat; }
+.room.ambience-golden { background: url('/images/ambience/golden.jpg') center/cover no-repeat; }
+.room.ambience-winter { background: url('/images/ambience/winter.jpg') center/cover no-repeat; }
+.room.ambience-dream { background: url('/images/ambience/dream.jpg') center/cover no-repeat; }
+/* fallback solid colors if images missing */
+.room.ambience-clear { background-color: #1a1a2e; }
+.room.ambience-rain { background-color: #0e2f44; }
+.room.ambience-meteor { background-color: #2b0d3e; }
+.room.ambience-golden { background-color: #3a2c1f; }
+.room.ambience-winter { background-color: #0b273b; }
+.room.ambience-dream { background-color: #2c1a40; }

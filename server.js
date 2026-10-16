@@ -300,6 +300,8 @@ const HANDLERS = {
     const { room, member } = ctx; if (!room || room.hostId !== member.id) return;
     if (typeof d.everyoneControls === 'boolean') room.settings.everyoneControls = d.everyoneControls;
     if (typeof d.isPublic === 'boolean') room.settings.isPublic = d.isPublic;
+    if (typeof d.ambience === 'string') room.settings.ambience = d.ambience;
+    if (typeof d.audioEnabled === 'boolean') room.settings.audioEnabled = d.audioEnabled;
     pushMeta(room);
   },
 
