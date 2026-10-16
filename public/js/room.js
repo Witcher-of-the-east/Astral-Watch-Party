@@ -1,6 +1,7 @@
 // The watch-party room: synced player, seat map with chat bubbles, reactions, queue, polls, people.
 import { createPlayer } from './player.js';
 import { createSeatMap } from './seatmap.js';
+import { createVoiceChat } from './voice.js';
 import { expectedPos, plan, IN_SYNC } from './sync.js';
 import * as net from './net.js';
 import { poster } from './art.js';
@@ -34,6 +35,11 @@ export async function renderRoom(root, code, hooks = {}) {
         <div class="r-actions">
           <button class="chipb" id="copy" title="Copy invite link">🔗 <b>${esc(code)}</b> <span>Copy invite</span></button>
           <button class="chipb" id="pick">🎬 <span id="picklabel">Change movie</span></button>
+          <div class="voice-group" id="voice-wrap">
+            <button class="chipb voice-btn" id="voicebtn" title="Join voice chat">🎙️ <span>Voice Chat</span></button>
+          </div>
+          <button class="chipb danger" id="leavebtn" title="Leave room">🚪 <span>Leave</span></button>
+          <button class="chipb danger" id="dismissbtn" title="Dismiss room for everyone" style="display:none">🛑 <span>Dismiss</span></button>
         </div>
       </div>
       <div class="stage-wrap">
@@ -102,6 +108,63 @@ export async function renderRoom(root, code, hooks = {}) {
     }
   });
   $('#seatmount').appendChild(seatmap.el);
+
+  /* ------------------------------------------------------------ voice chat */
+  const voice = createVoiceChat({
+    myId,
+    net,
+    onSpeakingChange: (id, isSpeaking) => {
+      seatmap.setSpeaking(id, isSpeaking);
+      const li = root.querySelector(`.plist li[data-id="${id}"]`);
+      if (li) {
+        const badge = li.querySelector('.vbadge');
+        if (badge) {
+          badge.classList.toggle('speaking', isSpeaking);
+          badge.textContent = isSpeaking ? '🔊' : (badge.dataset.muted === 'true' ? '🔇' : '🎙️');
+        }
+      }
+    },
+    onStateChange: () => {
+      renderVoiceControls();
+      renderPeople();
+    },
+    onError: (msg) => {
+      toast(msg);
+    }
+  });
+
+  function renderVoiceControls() {
+    const wrap = $('#voice-wrap');
+    if (!wrap) return;
+    if (!voice.inVoice) {
+      wrap.innerHTML = `<button class="chipb voice-btn" id="voicebtn" title="Join voice chat">🎙️ <span>Voice Chat</span></button>`;
+    } else {
+      wrap.innerHTML = `
+        <button class="chipb ${voice.muted ? 'voice-muted' : 'voice-on'}" id="voicemutebtn" title="${voice.muted ? 'Unmute microphone' : 'Mute microphone'}">
+          ${voice.muted ? '🔇 <span style="color:#f87171">Muted</span>' : '🎤 <span>Speaking</span>'}
+        </button>
+        <button class="chipb voice-exit" id="voiceleavebtn" title="Leave voice chat">✕ <span>Leave Voice</span></button>
+      `;
+    }
+  }
+
+  root.addEventListener('click', (e) => {
+    const vJoin = e.target.closest('#voicebtn');
+    if (vJoin) {
+      voice.join(S.meta ? S.meta.members : []);
+      return;
+    }
+    const vMute = e.target.closest('#voicemutebtn');
+    if (vMute) {
+      voice.toggleMute();
+      return;
+    }
+    const vLeave = e.target.closest('#voiceleavebtn');
+    if (vLeave) {
+      voice.leave();
+      return;
+    }
+  });
 
   /* ------------------------------------------------------------ helpers */
   const canControl = () => !!S.meta && (S.meta.hostId === myId || S.meta.settings.everyoneControls);
@@ -218,6 +281,55 @@ export async function renderRoom(root, code, hooks = {}) {
     };
   }
 
+  $('#leavebtn').onclick = () => {
+    const isH = isHost();
+    const otherConnected = S.meta ? S.meta.members.filter((m) => m.connected && m.id !== myId).length : 0;
+    const msg = isH && otherConnected > 0
+      ? 'You are the host. If you leave, hosting will automatically pass to the next member. Leave room?'
+      : 'Are you sure you want to leave this watch party?';
+    const m = modal(`
+      <h2 class="mh">Leave Watch Party</h2>
+      <p class="muted">${msg}</p>
+      <div class="two" style="margin-top:18px">
+        <button class="btn-g" id="staybtn">Stay in party</button>
+        <button class="btn-danger" id="confirmleave">Leave Room</button>
+      </div>
+    `);
+    m.el.querySelector('#staybtn').onclick = () => m.close();
+    m.el.querySelector('#confirmleave').onclick = () => {
+      m.close();
+      voice.leave();
+      net.send('leave');
+      location.hash = '#/';
+      toast('You left the room.');
+    };
+  };
+
+  function askDismiss() {
+    if (!isHost()) return;
+    const m = modal(`
+      <h2 class="mh" style="color:var(--bad)">Dismiss room for everyone?</h2>
+      <p class="muted">This will end the watch party immediately and disconnect all members. Everyone will be returned to the cinema home.</p>
+      <div class="two" style="margin-top:18px">
+        <button class="btn-g" id="canceldismiss">Cancel</button>
+        <button class="btn-danger" id="confirmdismiss">Dismiss Room</button>
+      </div>
+    `);
+    m.el.querySelector('#canceldismiss').onclick = () => m.close();
+    m.el.querySelector('#confirmdismiss').onclick = async () => {
+      m.close();
+      voice.leave();
+      const res = await net.request('dismiss').catch(() => null);
+      if (res && !res.ok) {
+        toast(res.error || 'Failed to dismiss room.');
+      } else {
+        location.hash = '#/';
+        toast('Room dismissed.');
+      }
+    };
+  }
+  $('#dismissbtn').onclick = askDismiss;
+
   /* ------------------------------------------------------------ tabs */
   function setTab(t) {
     S.tab = t;
@@ -321,17 +433,26 @@ export async function renderRoom(root, code, hooks = {}) {
     $('#host-settings').innerHTML = `<div class="hs">
       <label class="tg"><input type="checkbox" id="optctl" ${S.meta.settings.everyoneControls ? 'checked' : ''} ${host ? '' : 'disabled'}><span>Everyone can control playback</span></label>
       <label class="tg"><input type="checkbox" id="optpub" ${S.meta.settings.isPublic ? 'checked' : ''} ${host ? '' : 'disabled'}><span>Listed in Live parties</span></label>
-      ${host ? '' : '<small>Only the host can change these.</small>'}</div>`;
-    $('#people').innerHTML = S.meta.members.map((m) => `
+      ${host ? '<button class="btn-danger sm" id="hostdismiss" style="margin-top:6px;width:100%;justify-content:center">🛑 Dismiss Room (End for all)</button>' : '<small>Only the host can change these.</small>'}</div>`;
+    $('#people').innerHTML = S.meta.members.map((m) => {
+      const vBadge = m.inVoice
+        ? `<span class="vbadge ${m.speaking ? 'speaking' : ''} ${m.voiceMuted ? 'muted' : 'on'}" data-muted="${!!m.voiceMuted}" title="${m.voiceMuted ? 'Muted' : (m.speaking ? 'Speaking' : 'In Voice')}">${m.speaking ? '🔊' : (m.voiceMuted ? '🔇' : '🎙️')}</span>`
+        : '';
+      return `
       <li class="${m.connected ? '' : 'off'}" data-id="${m.id}">
         <span class="av" style="--c:${esc(m.color)}">${esc(m.name.charAt(0).toUpperCase())}</span>
         <div><b>${esc(m.name)}${m.id === myId ? ' <em>(you)</em>' : ''}</b><small>${m.id === S.meta.hostId ? '👑 Host · ' : ''}${m.seat ? `Row ${m.seat.r + 1}, seat ${m.seat.c + 1}` : 'Standing at the back'}${m.connected ? '' : ' · reconnecting'}</small></div>
-        ${host && m.id !== myId && m.connected ? '<button class="linkb" data-a="host">Make host</button>' : ''}</li>`).join('');
+        ${vBadge}
+        ${host && m.id !== myId && m.connected ? '<button class="linkb" data-a="host">Make host</button>' : ''}</li>`;
+    }).join('');
     renderBadges();
   }
   $('#host-settings').addEventListener('change', (e) => {
     if (e.target.id === 'optctl') net.send('settings', { everyoneControls: e.target.checked });
     if (e.target.id === 'optpub') net.send('settings', { isPublic: e.target.checked });
+  });
+  $('#host-settings').addEventListener('click', (e) => {
+    if (e.target.id === 'hostdismiss') askDismiss();
   });
   $('#people').onclick = async (e) => {
     const b = e.target.closest('[data-a="host"]'); if (!b) return;
@@ -347,6 +468,8 @@ export async function renderRoom(root, code, hooks = {}) {
     const n = S.meta.members.filter((m) => m.connected).length;
     $('#rsub').textContent = `${n} watching · host ${(memberById(S.meta.hostId) || {}).name || '—'}${S.meta.settings.everyoneControls ? ' · everyone can control' : ''}`;
     $('#picklabel').textContent = canControl() ? 'Change movie' : 'Add to queue';
+    const disBtn = $('#dismissbtn');
+    if (disBtn) disBtn.style.display = isHost() ? 'inline-flex' : 'none';
     hooks.onRoom && hooks.onRoom({ code, count: n });
     updateControlsState();
   }
@@ -427,12 +550,37 @@ export async function renderRoom(root, code, hooks = {}) {
   unsubs.push(net.on('polls', (p) => { S.polls = p; renderPolls(); }));
   unsubs.push(net.on('kicked', (d) => { toast(d.reason); location.hash = '#/'; }));
   unsubs.push(net.on('open', () => { if (joinedOnce) join(); }));
+  unsubs.push(net.on('voice_state', (d) => {
+    voice.handlePeerVoiceState(d.id, d);
+    if (S.meta) {
+      const m = S.meta.members.find((x) => x.id === d.id);
+      if (m) {
+        m.inVoice = d.inVoice;
+        m.voiceMuted = d.muted;
+        m.speaking = d.speaking;
+      }
+    }
+    seatmap.setSpeaking(d.id, !!d.speaking);
+    renderPeople();
+  }));
+  unsubs.push(net.on('voice_signal', (d) => {
+    voice.handleSignal(d.from, d.signal);
+  }));
+  unsubs.push(net.on('dismissed', (d) => {
+    voice.leave();
+    modal(`<h2 class="mh" style="color:var(--bad)">Party Dismissed</h2>
+      <p class="muted">The host <b>${esc(d.by || 'Host')}</b> has dismissed this watch party.</p>
+      <div style="margin-top:18px"><a class="btn-y" href="#/">Return to Cinema</a></div>`);
+    location.hash = '#/';
+    toast('The watch party was ended by the host.');
+  }));
 
   net.connect();
   if (net.online) join(); else { const off = net.onStatus((o) => { if (o) { off(); if (!joinedOnce) join(); } }); unsubs.push(off); }
 
   return () => {
     disposed = true;
+    voice.destroy();
     clearInterval(tickTimer); clearInterval(infoTimer);
     document.removeEventListener('keydown', onKey);
     unsubs.forEach((u) => u && u());

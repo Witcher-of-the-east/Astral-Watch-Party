@@ -42,6 +42,8 @@ export function createSeatMap({ onPick = null, selectable = true } = {}) {
         b.classList.add('taken');
         b.classList.toggle('me', m.id === me);
         b.classList.toggle('away', !m.connected);
+        b.classList.toggle('speaking', !!m.speaking);
+        b.classList.toggle('in-voice', !!m.inVoice);
         b.classList.remove('sel');
         if (wasId !== m.id || b.dataset.color !== m.color || b.dataset.name !== m.name) {
           const bubble = b.querySelector('.bubble');
@@ -92,5 +94,10 @@ export function createSeatMap({ onPick = null, selectable = true } = {}) {
     setTimeout(() => { d.remove(); if (!b.querySelector('.bubble')) b.classList.remove('talking'); }, 2200);
   }
 
-  return { el, update, bubble, react };
+  function setSpeaking(id, isSpeaking) {
+    const b = seatOf(id);
+    if (b) b.classList.toggle('speaking', !!isSpeaking);
+  }
+
+  return { el, update, bubble, react, setSpeaking };
 }

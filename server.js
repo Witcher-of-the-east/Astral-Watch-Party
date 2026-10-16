@@ -127,6 +127,11 @@ function leaveRoom(ctx, explicit) {
   if (member.conn !== ctx.conn) return; // taken over by a newer connection
   member.conn = null;
   member.connected = false;
+  if (member.inVoice) {
+    member.inVoice = false;
+    member.speaking = false;
+    broadcast(room, 'voice_state', { id: member.id, inVoice: false, muted: false, speaking: false });
+  }
   const finish = () => {
     const r = room.removeMember(member.id);
     if (!r) return;
@@ -296,6 +301,44 @@ const HANDLERS = {
     if (typeof d.everyoneControls === 'boolean') room.settings.everyoneControls = d.everyoneControls;
     if (typeof d.isPublic === 'boolean') room.settings.isPublic = d.isPublic;
     pushMeta(room);
+  },
+
+  dismiss(ctx, d, ack) {
+    const { room, member } = ctx; if (!room || !member) return;
+    if (room.hostId !== member.id) return ack({ ok: false, error: 'Only the host can dismiss the room.' });
+    broadcast(room, 'dismissed', { by: member.name });
+    rooms.delete(room.code);
+    for (const m of room.members.values()) {
+      clearTimeout(m.timer);
+      if (m.conn) m.conn = null;
+    }
+    room.members.clear();
+    ctx.room = null; ctx.member = null;
+    ack({ ok: true });
+  },
+
+  voice_state(ctx, d) {
+    const { room, member } = ctx; if (!room || !member) return;
+    if (typeof d.inVoice === 'boolean') member.inVoice = d.inVoice;
+    if (typeof d.muted === 'boolean') member.voiceMuted = d.muted;
+    if (typeof d.speaking === 'boolean') member.speaking = d.speaking;
+    broadcast(room, 'voice_state', {
+      id: member.id,
+      inVoice: !!member.inVoice,
+      muted: !!member.voiceMuted,
+      speaking: !!member.speaking
+    });
+  },
+
+  voice_signal(ctx, d) {
+    const { room, member } = ctx; if (!room || !member || !d.to || !d.signal) return;
+    const target = room.members.get(d.to);
+    if (target && target.conn && target.connected) {
+      send(target.conn, 'voice_signal', {
+        from: member.id,
+        signal: d.signal
+      });
+    }
   }
 };
 
