@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Astral Cinema · Watch Party</title>
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5c400'/%3E%3Cpath d='M12 9v14l11-7z' fill='%23111'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body data-page="home">
+  <header class="top">
+    <a class="logo" href="#/">Astral</a>
+    <a class="pillnav" href="#/browse">All Movie</a>
+    <div class="hc" id="hc" role="button" tabindex="0"></div>
+    <button class="user" id="user" aria-label="Your profile"><span class="uav" id="uav"></span><span id="uname"></span></button>
+    <button class="ibtn" id="searchbtn" aria-label="Search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+    <button class="ibtn" id="menubtn" aria-label="Menu"><svg width="26" height="26" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  </header>
+
+  <aside id="drawer" aria-label="Menu">
+    <button class="x" id="dclose" aria-label="Close menu">✕</button>
+    <h3>Join a party</h3>
+    <form id="joinform" class="two"><input id="joincode" placeholder="Room code or invite link" autocomplete="off"><button class="btn-y sm">Join</button></form>
+    <h3>Live parties</h3>
+    <div id="dlive"></div>
+    <h3>More</h3>
+    <a class="dl" href="#/browse"><b>Browse all movies</b></a>
+    <button class="dl asbtn" id="blank"><b>Start an empty room</b><small>Paste any YouTube or video link inside</small></button>
+  </aside>
+
+  <main id="app"></main>
+  <div id="modal-root"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>
