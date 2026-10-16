@@ -132,10 +132,15 @@ const uri = (svg) => `url('data:image/svg+xml,${encodeURIComponent(svg).replace(
 
 /** Wide cinematic background (CSS background-image value). */
 export function backdrop(movie) {
+  if (!movie) return '';
+  if (movie.backdropUrl) return `url('${movie.backdropUrl.replace(/'/g, "\\'")}')`;
+  if (movie.posterUrl) return `url('${movie.posterUrl.replace(/'/g, "\\'")}')`;
   const key = 'b' + movie.id;
   if (!cache.has(key)) {
     const W = 1600, H = 900;
-    cache.set(key, uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">${scene(movie.theme.motif, W, H, movie.theme, rng(hash(movie.id)))}</svg>`));
+    const motif = (movie.theme && movie.theme.motif) || 'signal';
+    const theme = movie.theme || { h1: 200, h2: 40, motif };
+    cache.set(key, uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">${scene(motif, W, H, theme, rng(hash(movie.id || 'x')))}</svg>`));
   }
   return cache.get(key);
 }
@@ -151,16 +156,21 @@ function wrap(title, max) {
 
 /** Portrait poster with title lettering (CSS background-image value). */
 export function poster(movie) {
+  if (!movie) return '';
+  if (movie.posterUrl) return `url('${movie.posterUrl.replace(/'/g, "\\'")}')`;
   const key = 'p' + movie.id;
   if (!cache.has(key)) {
-    const W = 300, H = 450, r = rng(hash(movie.id) ^ 7);
-    const lines = wrap(movie.title, 11);
+    const W = 300, H = 450, r = rng(hash(movie.id || 'x') ^ 7);
+    const motif = (movie.theme && movie.theme.motif) || 'signal';
+    const theme = movie.theme || { h1: 200, h2: 40, motif };
+    const lines = wrap(movie.title || 'Movie', 11);
     const size = lines.some((l) => l.length > 9) ? 30 : 36;
     const text = lines.map((l, i) => `<text x="150" y="${392 - (lines.length - 1 - i) * (size + 4)}" text-anchor="middle" font-family="Montserrat, Arial Black, Impact, sans-serif" font-weight="800" font-size="${size}" letter-spacing="3" fill="#fff">${l.replace(/&/g, '&amp;')}</text>`).join('');
-    cache.set(key, uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">${scene(movie.theme.motif, W, H, movie.theme, r)}
+    const genre = (movie.genres && movie.genres[0]) ? movie.genres[0].toUpperCase() : 'FILM';
+    cache.set(key, uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">${scene(motif, W, H, theme, r)}
       <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".85"/></linearGradient></defs>
       <rect width="${W}" height="${H}" fill="url(#fade)"/>${text}
-      <text x="150" y="426" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-size="11" letter-spacing="4" fill="#f5c400">${movie.year} · ${movie.genres[0].toUpperCase()}</text>
+      <text x="150" y="426" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-size="11" letter-spacing="4" fill="#f5c400">${movie.year || ''} · ${genre}</text>
       <rect x="1" y="1" width="${W - 2}" height="${H - 2}" fill="none" stroke="#fff" stroke-opacity=".12"/></svg>`));
   }
   return cache.get(key);
