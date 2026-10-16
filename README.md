@@ -1,29 +1,57 @@
 # Astral Cinema · Watch Party
 
+🌐 **Live Demo:** [https://astral-watch-party.onrender.com/](https://astral-watch-party.onrender.com/)
+
 A real-time watch-party website in a dark, cinematic style: a numbered hero carousel with a poster rail,
 a movie page with cast and storyline, and a **cinema seat map** that doubles as the room you actually sit in.
 Friends join with a code or link, everyone's video stays in sync, and chat shows up as speech bubbles above heads.
 
 **Zero dependencies.** Plain Node.js (v22+), no `npm install`, no build step.
 
-## Run it (Windows / VS Code)
+---
+
+## 1. Try It Online (Link Way)
+
+You can use the live deployment directly without installing anything:
+
+👉 **[https://astral-watch-party.onrender.com/](https://astral-watch-party.onrender.com/)**
+
+* **Start a party:** Click any movie on the home carousel or browse list, or paste a YouTube / MP4 link.
+* **Invite friends:** Copy the room invite link or share the 5-letter room code.
+* **Test alone:** Open a second private/incognito window on the same room URL to see real-time sync and chat bubbles in action.
+
+---
+
+## 2. Run It Locally (Terminal Way)
+
+If you want to run or develop the project on your machine:
 
 1. Install Node.js 22 or newer (LTS) from https://nodejs.org
-2. Open this folder in VS Code, then open a terminal (Ctrl + `) and run:
+2. Open this folder in your terminal / VS Code (Ctrl + `) and run:
 
-   ```
+   ```bash
    node server.js
    ```
-3. Open http://localhost:3000
-4. To try it alone, open a second **private/incognito window** on the same address and join the same room.
-   Pick **Signal: Test Reel**: it plays offline and shows a live timer, so you can see both windows are in sync.
+3. Open [http://localhost:3000](http://localhost:3000)
+4. To test sync locally, open a second **private/incognito window** at `http://localhost:3000` and join the same room.
+   Pick **Signal: Test Reel**: it plays offline and shows an on-screen millisecond timer to visually verify sync.
 
-Optional: `npm start` does the same, `npm run dev` restarts on file changes, `npm run loadtest` runs the latency test.
+### Terminal Commands
 
-### Invite friends
-* **Same Wi-Fi:** run `ipconfig`, find your IPv4 address and share `http://THAT-ADDRESS:3000` (allow Node through the Windows firewall when asked).
-* **Over the internet, quickly:** use a tunnel, e.g. Cloudflare (`cloudflared tunnel --url http://localhost:3000`) or ngrok (`ngrok http 3000`), and share the URL it prints.
-* **Permanently:** deploy to any host that runs a long-lived Node process with WebSockets (Render, Railway, Fly.io, a VPS). Start command `node server.js`; it reads the `PORT` environment variable.
+* `node server.js` or `npm start`: Starts the server on port 3000 (reads `PORT` environment variable).
+* `npm run dev`: Starts the server in watch mode (`node --watch server.js`), restarting automatically on code changes.
+* `npm run loadtest`: Simulates multiple concurrent room bots and reports network latency & clock drift.
+
+### Sharing Your Local Server
+
+* **Over the Internet (Instant):** Use a tunnel tool like Cloudflare Tunnel or ngrok:
+  ```bash
+  cloudflared tunnel --url http://localhost:3000
+  # or
+  ngrok http 3000
+  ```
+* **Same Wi-Fi Network:** Run `ipconfig` (Windows) or `ifconfig` (Mac/Linux), find your local IPv4 address, and share `http://YOUR-IP:3000` (allow Node through your firewall).
+* **Deploy Your Own:** Deployed to Render at [https://astral-watch-party.onrender.com/](https://astral-watch-party.onrender.com/) (also works on Railway, Fly.io, or any VPS) using start command `node server.js` with `NODE_VERSION=22`.
 
 ## What's in it
 
