@@ -250,8 +250,8 @@ const movies = [
      cast: [{ name: 'Timothée Chalamet', role: 'Paul Atreides' }, { name: 'Zendaya', role: 'Chani' }],
      times: ['18:00', '21:00', '23:45'],
      theme: { h1: 180, h2: 260, motif: 'desert' },
-     posterUrl: 'https://image.tmdb.org/t/p/original/8c4a8kE7PizaGQQnditMmI1xbRp.jpg',
-     backdropUrl: 'https://image.tmdb.org/t/p/original/eNI7PtK6DEYgZmHWP9gQNuff8pv.jpg',
+     posterUrl: 'https://image.tmdb.org/t/p/original/heM4XKC0jA8fTSNe8F7oUkcJV7Z.jpg',
+     backdropUrl: 'https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg',
      source: { kind: 'youtube', ytId: 'Way9Dexny3w' }
    },
    {
